@@ -16,6 +16,7 @@ contracts/*
 # DLQ log — AES-GCM encrypted at rest, but ciphertext of real customer
 # payloads still doesn't belong in public git history.
 logs/
+!logs/dlq_exceptions_REFERENCE.md
 
 # Python & runtime caches
 __pycache__/
