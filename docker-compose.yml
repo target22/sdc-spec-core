@@ -1,0 +1,56 @@
+version: '3.8'
+
+networks:
+  sovereign-net:
+    driver: bridge
+
+services:
+  # ---------------------------------------------------------------------
+  # Edge Boundary — Cloudflare Tunnel
+  # Terminates TLS for flowproxy.online / api.flowproxy.online and forwards
+  # traffic into the Docker network. No inbound ports are opened on the
+  # host or router; the tunnel is outbound-only from this container.
+  # ---------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: flowproxy_tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - sovereign-net
+    depends_on:
+      - core-engine
+
+  # ---------------------------------------------------------------------
+  # Immutable Core — api_engine.py (Tzimtzum Gateway / DAG Runner)
+  # Built from the existing Dockerfile. Only reachable inside the Docker
+  # network — the tunnel is the sole path in.
+  #
+  # NOTE vs. the previous version of this file: a "ports: 8000:8000" entry
+  # was previously present alongside a comment claiming no host port was
+  # published. That was a real contradiction — it published the API
+  # directly on the host, bypassing the tunnel entirely. It has been
+  # removed here so the container is reachable only via cloudflared, which
+  # is what the comment always claimed.
+  # ---------------------------------------------------------------------
+  core-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    container_name: sovereign-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Mapping data to the host machine to ensure absolute data preservation
+      # in the event of a container crash. contracts/ is the IP Vault;
+      # logs/ holds the rotating DLQ log and its backups.
+      - ./contracts:/app/contracts
+      - ./logs:/app/logs
+    networks:
+      - sovereign-net
+    # No "ports:" block — see note above. The tunnel is the sole ingress path.

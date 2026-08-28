@@ -1,0 +1,11 @@
+# Ignore specific files
+secrets.json
+config.local.env
+
+
+# Ignore specific folders
+node_modules/
+.git/
+tmp/
+bakup_20260827_SCE/
+test_core_engine/
