@@ -15,7 +15,7 @@ contracts/*
 
 # DLQ log — AES-GCM encrypted at rest, but ciphertext of real customer
 # payloads still doesn't belong in public git history.
-logs/
+logs/*
 !logs/dlq_exceptions_REFERENCE.md
 !logs/dlq_exceptions_template.log
 
