@@ -17,6 +17,7 @@ contracts/*
 # payloads still doesn't belong in public git history.
 logs/
 !logs/dlq_exceptions_REFERENCE.md
+!logs/dlq_exceptions_template.log
 
 # Python & runtime caches
 __pycache__/
