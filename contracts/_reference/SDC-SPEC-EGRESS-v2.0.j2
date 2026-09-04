@@ -1,0 +1,90 @@
+{#
+  SDC-SPEC-EGRESS-v2.0 :: SOVEREIGN DECLARATIVE EGRESS CONTRACT
+  CANONICAL ARTIFACT RENDERER — SINGLE SOURCE OF TRUTH (SSOT)
+  Paired with SDC-SPEC-INGRESS-v3.1.json's "init" stage.
+
+  REVISION NOTE: 'v2.0' is this TEMPLATE DOCUMENT's own revision number,
+  decoupled from 'contract_version' inside the paired .json file -- see
+  that file's _readme, directive 2, for why the two numbers are tracked
+  separately.
+
+  ARCHITECTURE DIRECTIVE:
+  Governs the deterministic transformation of internal canonical state into
+  a syntax-immune, enterprise-grade JSON egress artifact.
+
+  STRICT RENDER RULES (ZERO-EXCEPTION GOVERNANCE):
+
+  1. SYNTAX IMMUNITY: 100% of rendered values MUST pipe through `| tojson`,
+     no exceptions -- including values you're sure are "just a number".
+     This is what makes the output valid JSON regardless of embedded
+     quotes, backslashes, or non-ASCII text; it directly eliminates
+     structural JSON corruption at runtime.
+
+  2. STRICT-UNDEFINED SAFETY: every OPTIONAL attribute is rendered as
+     `{{ field | default(none) | tojson }}` -- `default(none)` first,
+     `tojson` second, always in that order. The engine's Jinja Environment
+     runs under StrictUndefined: a field genuinely ABSENT from render
+     context (not just null-valued) raises without this filter -- a
+     controlled boundary halt rather than silent data corruption.
+
+  3. DETERMINISTIC ROW ORDINALS: `loop.index0` (`row_index`) is stamped
+     into every fanned-out element, unconditionally -- the tiebreaker that
+     keeps a compound key unique even when every other component collides.
+
+  4. VOCABULARY ISOLATION: raw status codes and rendered display labels
+     are decoupled via STATUS_LABELS. Any DECISION_MATRIX rule reading a
+     rendered field back must compare against the LABEL side, never the
+     raw backend code -- the two vocabularies must never be conflated.
+
+  5. FILTER IDEMPOTENCY: domain-specific structural filters (as_link_field,
+     as_user_field, from filters/structural_filters.py) already return
+     null / [] on empty input by design -- do NOT wrap them in an
+     additional `| default(none)`. That would suppress the filter's own
+     "empty" encoding in favor of a generic one, and the two are not
+     guaranteed to match a given destination system's convention.
+
+  PUBLIC ARTIFACT NOTICE: shareable outside the private repo. No real
+  customer_id, credentials, or case-study-identifying field names. A
+  forked copy used for a real contract becomes an IP Vault artifact again
+  and should NOT be published as-is.
+#}
+{%- set STATUS_LABELS = {
+  "OPEN": "Open",
+  "CLOSED": "Closed",
+  "CANCELLED": "Cancelled",
+  "ARCHIVED": "Archived"
+} -%}
+{%- set TERMINAL_STATUS_SET = ["CLOSED", "CANCELLED", "ARCHIVED"] -%}
+{%- set status_label = STATUS_LABELS.get(status, status) -%}
+{%- set is_terminal_status = status in TERMINAL_STATUS_SET -%}
+[
+{%- for row in line_items | default([{}]) %}
+  {
+    "record_id": {{ record_id | tojson }},
+    "record_link": {{ record_id | as_link_field | tojson }},
+    "row_index": {{ loop.index0 | tojson }},
+    "status": {{ status_label | tojson }},
+    "owner_id": {{ owner_id | as_user_field | tojson }},
+
+    "label": {{ label | default(none) | tojson }},
+
+{%- if not is_terminal_status %}
+    "note": {{ note | default(none) | tojson }},
+    "amount": {{ amount | default(none) | tojson }},
+    "amount_currency": {{ amount_currency | default(none) | tojson }},
+
+    "item_code": {{ row.get("item_code") | default(none) | tojson }},
+    "item_qty": {{ row.get("item_qty") | default(none) | tojson }},
+    "item_amount": {{ row.get("item_amount") | default(none) | tojson }},
+    "item_amount-Currency": {{ row.get("item_amount-Currency") | default(none) | tojson }},
+{%- endif %}
+
+    "instance_code": {{ instance_code | default(none) | tojson }},
+    "created_at": {{ created_at | default(none) | tojson }},
+    "updated_at": {{ updated_at | default(none) | tojson }},
+
+    "report_window_start": {{ current_timestamp | shift_days(-7) | to_date_str | tojson }},
+    "report_window_end": {{ current_timestamp | to_date_str | tojson }}
+  }{{ "," if not loop.last }}
+{%- endfor %}
+]
